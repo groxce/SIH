@@ -13,15 +13,16 @@ from app.modules.brain import DecisionMaker
 st.set_page_config(page_title="Hedge Fund AI", layout="wide")
 
 st.title("🤖 Intelligent Hedge Fund System")
-st.markdown("### Powered by Machine Learning & OpenClaw Data Engine")
+st.markdown("### Powered by Machine Learning, OpenClaw & AI")
 
 # Sidebar
 st.sidebar.header("Configuration")
 ticker = st.sidebar.text_input("Asset Ticker", value="BTC-USD")
-period = st.sidebar.selectbox("Period", ["1mo", "3mo", "6mo", "1y", "max"], index=1)
+period = st.sidebar.selectbox("Period", ["6mo", "1y", "2y", "5y", "max"], index=1)
+st.sidebar.caption("Note: Longer periods provide better training data for the ML model.")
 
 if st.sidebar.button("Analyze Market"):
-    with st.spinner('Fetching data and crunching numbers...'):
+    with st.spinner('Fetching data, Scraping news, Training ML models...'):
         # Initialize Modules
         fetcher = MarketFetcher()
         scraper = NewsScraper()
@@ -40,8 +41,9 @@ if st.sidebar.button("Analyze Market"):
                 news_headlines = scraper.get_general_market_news()
                 st.warning("No specific news found for asset. Using general market news.")
 
-            # 3. Analyze
+            # 3. Analyze (Includes Training ML)
             decision = brain.decide(history, news_headlines)
+            details = decision['details']
 
             # Layout
             col1, col2 = st.columns([2, 1])
@@ -56,6 +58,21 @@ if st.sidebar.button("Analyze Market"):
                                 close=history['Close'])])
                 fig.update_layout(height=500)
                 st.plotly_chart(fig, use_container_width=True)
+
+                # ML Feature Importance Chart
+                if 'ml_features' in details and details['ml_features']:
+                    st.subheader("🧠 ML Model: Feature Importance")
+                    feat_imp = details['ml_features']
+                    feat_df = pd.DataFrame(list(feat_imp.items()), columns=['Feature', 'Importance'])
+                    feat_df = feat_df.sort_values(by='Importance', ascending=True)
+
+                    fig_feat = go.Figure(go.Bar(
+                        x=feat_df['Importance'],
+                        y=feat_df['Feature'],
+                        orientation='h'
+                    ))
+                    fig_feat.update_layout(height=300, margin=dict(l=0, r=0, t=0, b=0))
+                    st.plotly_chart(fig_feat, use_container_width=True)
 
             with col2:
                 # Decision Card
@@ -72,21 +89,38 @@ if st.sidebar.button("Analyze Market"):
                 </div>
                 """, unsafe_allow_html=True)
 
+                # Metrics
                 st.markdown("#### Analysis Details")
-                details = decision['details']
-                st.write(f"**Score:** {details['score']}")
-                st.write(f"**RSI:** {details['rsi']}")
-                st.write(f"**Sentiment:** {details['sentiment_score']}")
+                st.metric("Total Score", details['score'])
 
+                # ML Section
+                st.markdown("---")
+                st.markdown("##### 🔮 Predictive Model")
+                ml_pred = details.get('ml_prediction', 'N/A')
+                ml_prob = details.get('ml_probability', 0)
+
+                col_m1, col_m2 = st.columns(2)
+                col_m1.metric("Prediction", ml_pred)
+                col_m2.metric("Probability", f"{int(ml_prob*100)}%")
+
+                # Sentiment Section
+                st.markdown("---")
+                st.markdown("##### 📰 Sentiment Analysis")
+                st.metric("Sentiment Score", details['sentiment_score'])
+
+                # Technical Section
+                st.markdown("---")
+                st.markdown("##### 📈 Technical Indicators")
+                st.metric("RSI", details['rsi'])
                 if details['rsi'] < 30:
-                    st.success("RSI indicates Oversold")
+                    st.success("Oversold")
                 elif details['rsi'] > 70:
-                    st.error("RSI indicates Overbought")
+                    st.error("Overbought")
 
             # News Section
             st.subheader("Market Intelligence (OpenClaw)")
-            for i, headline in enumerate(news_headlines[:5]):
-                st.text(f"📰 {headline}")
+            for i, headline in enumerate(news_headlines[:10]):
+                st.markdown(f"- {headline}")
 
 else:
-    st.info("Enter a ticker and click 'Analyze Market' to start.")
+    st.info("Enter a ticker (e.g., BTC-USD, AAPL, EURUSD=X) and click 'Analyze Market' to start.")

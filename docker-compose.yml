@@ -7,5 +7,16 @@ services:
       - "8501:8501"
     volumes:
       - ./app:/app/app
+      - ./app/data:/app/app/data
     environment:
       - PYTHONUNBUFFERED=1
+
+  trading-bot:
+    build: .
+    command: python app/bot.py
+    volumes:
+      - ./app:/app/app
+      - ./app/data:/app/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
